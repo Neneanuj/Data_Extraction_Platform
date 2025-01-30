@@ -37,6 +37,23 @@ def extract_clean_text(soup):
     except Exception:
         return None, "Text extraction failed"
 
+def extract_urls(soup, base_url):
+    """Extract URLs with metadata from HTML"""
+    try:
+        urls = []
+        for i, link in enumerate(soup.find_all('a')):
+            href = link.get('href')
+            if href:
+                urls.append({
+                    'position': i + 1,
+                    'url': urljoin(base_url, href),
+                    'text': link.text.strip(),
+                    'title': link.get('title', 'N/A')
+                })
+        return urls, None
+    except Exception:
+        return None, "URL extraction failed"
+
 def extract_images(soup, base_url):
     """Extract images with metadata"""
     try:
@@ -85,7 +102,8 @@ if __name__ == "__main__":
     results = {
         'text': extract_clean_text(parsed_html),
         'images': extract_images(parsed_html, target_url),
-        'tables': extract_tables(parsed_html)
+        'tables': extract_tables(parsed_html),
+        'urls': extract_urls(parsed_html, target_url)
     }
     
     # Save and display results
@@ -96,11 +114,11 @@ if __name__ == "__main__":
                 with open('content.txt', 'w', encoding='utf-8') as f:
                     f.write(data)
                 print(f"✓ Text saved to content.txt")
-            elif content_type == 'images':
+            elif content_type in ['images', 'urls']:
                 df = pd.DataFrame(data)
-                filename = f'image_metadata_{len(data)}.csv'
+                filename = f'{content_type}_metadata_{len(data)}.csv'
                 df.to_csv(filename, index=False)
-                print(f"✓ {len(data)} images saved to {filename}")
+                print(f"✓ {len(data)} {content_type} saved to {filename}")
             else:  # tables
                 for i, table in enumerate(data, 1):
                     filename = f'table_{i}.csv'
