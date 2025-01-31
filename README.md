@@ -38,6 +38,12 @@ The system provides:
 | **Cloud Storage** | AWS S3 |
 | **Deployment** | Render, Streamlit Cloud |
 
+---
+
+## **🛠️ Diagrams**
+
+![image](./docs/data_extraction_architecture.png)
+
 
 ---
 
