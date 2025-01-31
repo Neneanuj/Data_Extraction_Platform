@@ -1,19 +1,18 @@
 # main.tf
 
 # ----------------------------
-# 1. 配置 AWS Provider
+# 1. Configure AWS Provider
 # ----------------------------
-
 
 provider "aws" {
   region  = var.aws_region
-  profile = var.aws_profile  # 新增此行
+  profile = var.aws_profile  # Specify AWS profile for authentication
 }
 
+# ----------------------------
+# 2. Create VPC Network
+# ----------------------------
 
-# ----------------------------
-# 2. 创建 VPC 网络
-# ----------------------------
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
@@ -25,12 +24,13 @@ module "vpc" {
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
   private_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
 
-  enable_nat_gateway = false  # 生产环境建议启用
+  enable_nat_gateway = false  # Set to `true` for production environments
 }
 
 # ----------------------------
-# 3. IAM Role & Policy，用于 EC2 访问 S3
+# 3. IAM Role & Policy for EC2 Access to S3
 # ----------------------------
+
 resource "aws_iam_role" "ec2_role" {
   name = "ec2-role"
 
@@ -45,17 +45,14 @@ resource "aws_iam_role" "ec2_role" {
     }]
   })
 }
-# 附加 AmazonEC2InstanceConnect 策略到 EC2 IAM 角色
 
-
-
-
-
+# Attach Amazon SSM Managed Policy for EC2 Instance Management
 resource "aws_iam_role_policy_attachment" "ssm_attach" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# Define IAM Policy for EC2 to Access S3
 resource "aws_iam_role_policy" "ec2_s3_policy" {
   name = "ec2-s3-policy"
   role = aws_iam_role.ec2_role.id
@@ -67,7 +64,7 @@ resource "aws_iam_role_policy" "ec2_s3_policy" {
         "s3:GetObject",
         "s3:ListBucket"
       ],
-      Effect   = "Allow",
+      Effect = "Allow",
       Resource = [
         "arn:aws:s3:::${var.s3_bucket}",
         "arn:aws:s3:::${var.s3_bucket}/*"
@@ -76,15 +73,14 @@ resource "aws_iam_role_policy" "ec2_s3_policy" {
   })
 }
 
+# Create IAM Instance Profile for EC2
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "ec2-instance-profile"
   role = aws_iam_role.ec2_role.name
 }
 
-# main.tf
-
 # ----------------------------
-# 4. 安全组配置
+# 4. Security Groups Configuration
 # ----------------------------
 
 # ALB Security Group
@@ -149,16 +145,14 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-
-
 # ----------------------------
-# 5. 创建 EC2 实例（已修改为 Ubuntu 官方镜像）
+# 5. Create EC2 Instance (Using Ubuntu Official AMI)
 # ----------------------------
 
-# 新增：动态获取最新 Ubuntu 22.04 LTS AMI
+# Fetch the latest Ubuntu 22.04 LTS AMI dynamically
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]  # Ubuntu 官方账户 ID
+  owners      = ["099720109477"] # Ubuntu Official AWS Account ID
 
   filter {
     name   = "name"
@@ -172,41 +166,35 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "webapp_ec2" {
-  ami                    = data.aws_ami.ubuntu.id  # 使用动态获取的 Ubuntu AMI
-  instance_type          = var.ec2_instance_type
-  subnet_id              = module.vpc.public_subnets[0]
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.ec2_instance_type
+  subnet_id                   = module.vpc.public_subnets[0]
+  vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
   associate_public_ip_address = true
-
-  # 新增：Ubuntu 默认用户名是 "ubuntu"，确保 SSH 配置匹配
-  key_name               = var.ssh_key_name  # 如果使用 SSH，请取消注释并配置
 
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
-  # 注意：Ubuntu 使用 apt 包管理器，确保 setup.sh 脚本兼容
- user_data = base64encode(templatefile("${path.module}/setup.sh", {}))
+  user_data = file("${path.module}/setup.sh") # Ensure `setup.sh` exists in the same directory
 
   tags = {
-    Name = "jellysillyfish-ec2-ubuntu"
+    Name = "jellysillyfish-ec2"
   }
 }
 
 # ----------------------------
-# 6. 创建 Target Group 指向 EC2 实例
+# 6. ALB & Target Group Configuration
 # ----------------------------
+
+# Create Target Group for EC2 Instance
 resource "aws_lb_target_group" "ec2_tg" {
   name        = var.target_group_name
   port        = 8000
   protocol    = "HTTP"
   vpc_id      = module.vpc.vpc_id
   target_type = "instance"
-
-  
 }
 
-# ----------------------------
-# 7. 创建 ALB
-# ----------------------------
+# Create Application Load Balancer (ALB)
 resource "aws_lb" "alb" {
   name               = var.alb_name
   internal           = false
@@ -217,9 +205,7 @@ resource "aws_lb" "alb" {
   enable_deletion_protection = false
 }
 
-# ----------------------------
-# 8. 将 EC2 实例添加到 Target Group 
-# ----------------------------
+# Attach EC2 Instance to Target Group
 resource "aws_lb_target_group_attachment" "ec2_attachment" {
   target_group_arn = aws_lb_target_group.ec2_tg.arn
   target_id        = aws_instance.webapp_ec2.id
@@ -227,8 +213,10 @@ resource "aws_lb_target_group_attachment" "ec2_attachment" {
 }
 
 # ----------------------------
-# 9. 创建 ALB Listener (HTTPS)
+# 7. ALB Listener Configuration (HTTP & HTTPS)
 # ----------------------------
+
+# HTTPS Listener with SSL Certificate
 resource "aws_lb_listener" "https_listener" {
   load_balancer_arn = aws_lb.alb.arn
   port              = 443
@@ -244,9 +232,7 @@ resource "aws_lb_listener" "https_listener" {
   depends_on = [aws_acm_certificate_validation.cert_validation]
 }
 
-# ----------------------------
-# 10. 创建 ALB Listener (HTTP -> HTTPS 重定向)
-# ----------------------------
+# HTTP Listener (Redirect to HTTPS)
 resource "aws_lb_listener" "http_listener" {
   load_balancer_arn = aws_lb.alb.arn
   port              = 80
@@ -264,47 +250,10 @@ resource "aws_lb_listener" "http_listener" {
 }
 
 # ----------------------------
-# 11. 创建 ACM SSL 证书
+# 8. Route53 & SSL Certificate Configuration
 # ----------------------------
-resource "aws_acm_certificate" "ssl" {
-  domain_name       = var.domain_name
-  validation_method = "DNS"
 
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# ----------------------------
-# 12. 自动创建 DNS 验证记录
-# ----------------------------
-resource "aws_route53_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.ssl.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  zone_id = var.hosted_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  records = [each.value.record]
-  ttl     = 300
-}
-
-# ----------------------------
-# 13. 等待证书验证完成
-# ----------------------------
-resource "aws_acm_certificate_validation" "cert_validation" {
-  certificate_arn         = aws_acm_certificate.ssl.arn
-  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
-}
-
-# ----------------------------
-# 14. Route53 记录指向 ALB
-# ----------------------------
+# Automatically Create DNS Record for ALB
 resource "aws_route53_record" "api" {
   zone_id = var.hosted_zone_id
   name    = var.domain_name
@@ -318,22 +267,8 @@ resource "aws_route53_record" "api" {
 }
 
 # ----------------------------
-# 15. 输出信息
+# 9. Outputs
 # ----------------------------
-output "ec2_instance_id" {
-  description = "The ID of the EC2 instance"
-  value       = aws_instance.webapp_ec2.id
-}
-
-output "alb_dns_name" {
-  description = "The DNS name of the ALB"
-  value       = aws_lb.alb.dns_name
-}
-
-output "certificate_arn" {
-  description = "The ARN of the ACM certificate"
-  value       = aws_acm_certificate.ssl.arn
-}
 
 output "domain_url" {
   description = "The URL of the deployed API"
