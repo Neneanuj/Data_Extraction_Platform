@@ -4,15 +4,29 @@ import pandas as pd
 import time
 from io import BytesIO
 
-# Initialize session state
-if 'api_response' not in st.session_state:
-    st.session_state.api_response = None
-
-# FastAPI endpoint URL - update with your actual FastAPI server URL
-API_BASE_URL = "http://localhost:8000"
+import streamlit as st
 
 # Page configuration
 st.set_page_config(layout="wide", page_title="Data Extraction Tool")
+
+
+# Initialize session state
+if "api_response" not in st.session_state:
+    st.session_state["api_response"] = {}
+
+# Safely check for the "status" key
+if "status" in st.session_state["api_response"]:
+    if st.session_state["api_response"]["status"] == "success":
+        st.write("Success!")
+    else:
+        st.write("Failure!")
+else:
+    st.write("Key 'status' not found in api_response.")
+
+
+# FastAPI endpoint URL - update with your actual FastAPI server URL
+API_BASE_URL = "http://127.0.0.1:8000"
+
 
 # Sidebar navigation
 with st.sidebar:
@@ -84,6 +98,7 @@ elif page == "Open Source Extraction":
 else:  # Web Scrape Tool
     st.title("Web Scraping")
     
+    
     # Use a form to capture Enter key press
     with st.form(key='url_form'):
         url = st.text_input("Enter URL to scrape and press Enter:", placeholder="https://example.com")
@@ -108,6 +123,7 @@ else:  # Web Scrape Tool
     if st.session_state.get('api_response') and st.button("Clear Results", use_container_width=True):
         st.session_state.api_response = None
         st.experimental_rerun()
+
 
 
 
