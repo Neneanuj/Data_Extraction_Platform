@@ -98,21 +98,33 @@ elif page == "Open Source Extraction":
 else:  # Web Scrape Tool
     st.title("Web Scraping")
     
-    url = st.text_input("Enter URL to scrape:", placeholder="https://example.com")
     
-    if url:
-        if st.button("Scrape Website"):
-            with st.spinner("Scraping website..."):
-                response = scrape_webpage(url)
-                st.session_state.api_response = response
-                
-        if st.session_state.api_response is not None:
+    # Use a form to capture Enter key press
+    with st.form(key='url_form'):
+        url = st.text_input("Enter URL to scrape and press Enter:", placeholder="https://example.com")
+        submit_button = st.form_submit_button("Extract URL Data")
+        
+        if submit_button and url:
+            try:
+                with st.spinner("Scraping website..."):
+                    response = scrape_webpage(url)
+                    st.session_state.api_response = response
+                    
+                if st.session_state.api_response:
+                    if st.session_state.api_response["status"] == "success":
+                        st.success("Scraping Complete!")
+                        st.markdown(f"Download Link: {st.session_state.api_response['download_url']}")
+                    else:
+                        st.error(f"Error: {st.session_state.api_response['message']}")
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
 
-            if st.session_state.api_response.get("status") == "success":
-                st.success("Scraping Complete!")
-                st.markdown(f"Download Link: {st.session_state.api_response['download_url']}")
-            else:
-                st.error(f"Error: {st.session_state.api_response.get('message', 'Unknown error')}") 
+    # Clear results button (outside the form)
+    if st.session_state.get('api_response') and st.button("Clear Results", use_container_width=True):
+        st.session_state.api_response = None
+        st.experimental_rerun()
+
+
 
 
 # Footer
