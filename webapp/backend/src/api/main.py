@@ -6,6 +6,8 @@ import io
 import shutil
 import pandas as pd
 
+from datetime import datetime
+import json
 # Add the parent directory to sys.path for module imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -14,11 +16,14 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 import uvicorn
 from typing import Dict, Any
 
+
 # Import custom modules for S3 operations and data extraction
 from S3.s3_organization import upload_to_s3, generate_s3_key, generate_presigned_url
 from extraction.pdf_parser_enterprise import extract_and_store_pdf
 from extraction.pdf_parser_opensource import process_pdf_with_open_source
 from extraction.web_scraper import scrape_url_and_convert
+from extraction.web_scraper_enterprise import scrape_url_with_diffbot
+
 
 # Initialize FastAPI application
 app = FastAPI()
@@ -134,75 +139,151 @@ async def scrape_webpage(
     bucket_name: str = Form(default="bigdata-project1-storage")
 ) -> Dict[str, Any]:
     """
-    Web scraping endpoint to:
-    1. Scrape webpage content including text, images, tables, and links.
-    2. Convert extracted content to Markdown files.
-    3. Package extracted data into a ZIP archive.
-    4. Upload the ZIP archive to S3.
-    5. Return the download link for the ZIP archive.
+    Web scraping API endpoint:
+    1. Scrapes the webpage and extracts text, images, tables, and links.
+    2. Converts extracted content to Markdown and other formats.
+    3. Packages data into a ZIP file and uploads it to S3.
+    4. Returns a downloadable S3 link.
     """
-    # Perform web scraping and extract data
-    result = scrape_url_and_convert(url)
-    if result["error"]:
-        return {"status": "error", "message": result["error"]}
+    try:
+        # Step 1: Scrape the webpage
+        result = scrape_url_and_convert(url)
+        if not result or result.get("error"):
+            return {"status": "error", "message": result.get("error", "Unknown error occurred")}
 
-    docling_md = result["docling_markdown"]
-    markitdown_md = result["markitdown_markdown"]
-    text_raw = result["text_raw"]
-    images_data = result["images"]
-    tables_data = result["tables"]
-    urls_data = result["urls"]
+        # Step 2: Prepare data for ZIP file
+        docling_md = result.get("docling_markdown", "")
+        markitdown_md = result.get("markitdown_markdown", "")
+        text_raw = result.get("text_raw", "")
+        images_data = result.get("images", [])
+        tables_data = result.get("tables", [])
+        urls_data = result.get("urls", [])
 
-    # Create an in-memory ZIP archive
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        # Add extracted Markdown files
-        zf.writestr("docling.md", docling_md)
-        zf.writestr("markitdown.md", markitdown_md)
+        # Step 3: Create ZIP file in memory
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("docling.md", docling_md)
+            zf.writestr("markitdown.md", markitdown_md)
+            zf.writestr("content.txt", text_raw)
 
-        # Add extracted raw text
-        zf.writestr("content.txt", text_raw)
+            if tables_data:
+                for i, df in enumerate(tables_data, start=1):
+                    csv_buffer = io.StringIO()
+                    df.to_csv(csv_buffer, index=False)
+                    zf.writestr(f"tables/table_{i}.csv", csv_buffer.getvalue())
+            else:
+                zf.writestr("tables/.placeholder", "")
 
-        # Add extracted tables as CSV files
-        if tables_data:
-            for i, df in enumerate(tables_data, start=1):
-                csv_name = f"tables/table_{i}.csv"
-                csv_buffer = io.StringIO()
-                df.to_csv(csv_buffer, index=False)
-                zf.writestr(csv_name, csv_buffer.getvalue())
-        else:
-            zf.writestr("tables/.placeholder", "")
+            if images_data:
+                df_images = pd.DataFrame(images_data)
+                csv_buf = io.StringIO()
+                df_images.to_csv(csv_buf, index=False)
+                zf.writestr("images/images_metadata.csv", csv_buf.getvalue())
+            else:
+                zf.writestr("images/.placeholder", "")
 
-        # Add extracted images metadata
-        if images_data:
-            df_images = pd.DataFrame(images_data)
-            csv_buf = io.StringIO()
-            df_images.to_csv(csv_buf, index=False)
-            zf.writestr("images/images_metadata.csv", csv_buf.getvalue())
-        else:
-            zf.writestr("images/.placeholder", "")
+            if urls_data:
+                df_urls = pd.DataFrame(urls_data)
+                csv_buf = io.StringIO()
+                df_urls.to_csv(csv_buf, index=False)
+                zf.writestr("urls/urls_metadata.csv", csv_buf.getvalue())
+            else:
+                zf.writestr("urls/.placeholder", "")
 
-        # Add extracted URLs metadata
-        if urls_data:
-            df_urls = pd.DataFrame(urls_data)
-            csv_buf = io.StringIO()
-            df_urls.to_csv(csv_buf, index=False)
-            zf.writestr("urls/urls_metadata.csv", csv_buf.getvalue())
-        else:
-            zf.writestr("urls/.placeholder", "")
+        # Step 4: Upload ZIP to S3
+        file_type = "web_scraper/opensource"
+        file_name = "result.zip"
+        zip_key = generate_s3_key(file_type=file_type, file_name=file_name)
+        zip_buffer.seek(0)
+        upload_to_s3(bucket_name, zip_key, zip_buffer.getvalue())
 
-    # Upload the ZIP archive to S3
-    zip_key = generate_s3_key("web_scraper", "result") + ".zip"
-    zip_buffer.seek(0)
-    upload_to_s3(bucket_name, zip_key, zip_buffer.getvalue())
+        # Step 5: Generate presigned S3 URL
+        download_url = generate_presigned_url(bucket_name, zip_key)
 
-    # Generate a presigned URL for downloading the ZIP archive
-    download_url = generate_presigned_url(bucket_name, zip_key)
-    return {
-        "status": "success",
-        "download_url": download_url,
-        "message": "ZIP contains Markdown files, extracted text, images, tables, and links metadata."
-    }
+        return {
+            "status": "success",
+            "download_url": download_url,
+            "message": "The ZIP archive has been stored in S3 and is available for download."
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+
+
+
+@app.post("/scrape_diffbot")
+async def scrape_diffbot(
+    url: str = Form(...),
+    bucket_name: str = Form(default="bigdata-project1-storage")
+) -> Dict[str, Any]:
+    """
+    Endpoint to scrape a webpage using the Diffbot API.
+
+    Steps:
+    1. Fetch webpage content using Diffbot API.
+    2. Save the scraped content into a markdown file.
+    3. Compress the markdown file into a ZIP archive.
+    4. Upload the ZIP archive to S3 under 'web_scraper/enterprise/'.
+    5. Return a downloadable S3 link for the ZIP file.
+
+    Parameters:
+    - url (str): The webpage URL to be scraped.
+    - bucket_name (str): The S3 bucket where the output file will be stored.
+
+    Returns:
+    - JSON response with status, message, and a download link if successful.
+    """
+    try:
+        # Step 1: Scrape the webpage using Diffbot API
+        data = scrape_url_with_diffbot(url)
+
+        # Handle potential errors from the scraping function
+        if "error" in data:
+            return {"status": "error", "message": data["error"]}
+
+        # Step 2: Format scraped data into Markdown
+        markdown_content = f"# Scraped Data Report\n\n"
+        markdown_content += f"## Source URL\n{url}\n\n"
+        markdown_content += f"## Timestamp\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        markdown_content += "## Extracted Content\n"
+        markdown_content += "```\n"
+        markdown_content += json.dumps(data, indent=2)
+        markdown_content += "\n```\n"
+
+        # Step 3: Create an in-memory ZIP archive
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            # Add the Markdown file into the ZIP
+            zf.writestr("scraped_data.md", markdown_content)
+
+        # Step 4: Define S3 upload path
+        s3_prefix = "web_scraper/enterprise"
+        
+        # Generate a unique S3 key for the ZIP file
+        zip_filename = "scraped_data.zip"
+        zip_key = generate_s3_key(file_type=s3_prefix, file_name=zip_filename)
+
+        # Step 5: Upload ZIP file to S3
+        zip_buffer.seek(0)
+        upload_to_s3(bucket_name, zip_key, zip_buffer.getvalue())
+
+        # Step 6: Generate a presigned URL for downloading the ZIP file
+        download_url = generate_presigned_url(bucket_name, zip_key)
+
+        return {
+            "status": "success",
+            "download_url": download_url,
+            "message": "Scraped data has been stored in S3. You can download the markdown file using the provided link."
+        }
+
+    except Exception as e:
+        # Handle unexpected errors
+        return {"status": "error", "message": str(e)}
 
 # Run FastAPI server when script is executed directly
 if __name__ == "__main__":
