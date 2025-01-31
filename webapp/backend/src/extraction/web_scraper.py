@@ -1,5 +1,3 @@
-# web_scraper.py
-
 import os
 import tempfile
 import requests
@@ -10,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import re
 
-# 这里引入你已有的 docling/markitdown 转换工具
+# Import existing docling and markitdown conversion tools
 from standardization.docling_utils import docling_convert
 from standardization.markitdown_utils import markitdown_convert
 
@@ -107,20 +105,19 @@ def extract_tables(soup):
     except Exception:
         return None, "Table extraction failed"
 
-
 def scrape_url_and_convert(url: str):
     """
-    对外暴露的爬虫+转换函数：
-    1) 解析URL -> 提取文本、图片、表格、链接
-    2) 把提取到的文本分别转换为 docling.md / markitdown.md
-    返回:
+    Publicly exposed scraping and conversion function:
+    1) Parse URL -> Extract text, images, tables, and links
+    2) Convert extracted text into docling.md and markitdown.md
+    Returns:
     {
       "docling_markdown": str,
       "markitdown_markdown": str,
-      "text_raw": str,    # 可选，保存原始提取文本
-      "images": [ ... ], # 图片的元数据
+      "text_raw": str,    # Optionally, saves the original extracted text
+      "images": [...],    # Metadata of images
       "tables": [DataFrame1, DataFrame2, ...],
-      "urls": [...],     # 链接的元数据
+      "urls": [...],      # Metadata of links
       "error": None or "xxxxx"
     }
     """
@@ -148,11 +145,7 @@ def scrape_url_and_convert(url: str):
     if err_tables:
         tables_data = []
 
-    # 把 text_data 转换成 docling.md & markitdown.md
-    # 注意：docling/markitdown 可能只接受某些格式(如 .md/.docx/.pdf)
-    # 下面示例直接写到临时 .md，然后让 docling_convert(file_path)
-    # 如果docling不支持md，就需要换 docx等。
-
+    # Convert text_data to docling.md and markitdown.md
     with tempfile.NamedTemporaryFile(delete=False, suffix=".md") as tmp_md:
         tmp_md.write(text_data.encode("utf-8"))
         tmp_md_path = tmp_md.name
@@ -169,7 +162,7 @@ def scrape_url_and_convert(url: str):
     except Exception as e:
         markitdown_md = f"Markitdown conversion failed: {e}"
 
-    # 用完删除临时文件
+    # Delete temporary file after use
     os.remove(tmp_md_path)
 
     return {
