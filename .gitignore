@@ -273,6 +273,8 @@ cython_debug/
 **/.DS_Store
 
 .zip
+*.zip
+
 
 # Ignore Terraform state files
 *.tfstate
