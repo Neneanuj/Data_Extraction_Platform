@@ -1,0 +1,14 @@
+beautifulsoup4
+boto3
+botocore
+docling
+fastapi
+PyMuPDF
+markitdown
+pandas
+pdfplumber
+pdfservices_sdk
+python-dotenv
+Requests
+streamlit
+uvicorn
