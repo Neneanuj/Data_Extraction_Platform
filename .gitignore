@@ -271,3 +271,52 @@ cython_debug/
 
 .DS_Store
 **/.DS_Store
+
+.zip
+*.zip
+
+
+# Ignore Terraform state files
+*.tfstate
+*.tfstate.backup
+.env
+# Ignore crash log files
+crash.log
+crash.*.log
+
+# Ignore Terraform plan files
+*.tfplan
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Ignore local Terraform directories
+.terraform/
+
+# Ignore override files which are used for local experiments
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore sensitive variable files
+*.tfvars
+*.tfvars.json
+
+# Ignore backup files created by text editors
+*~
+*.bak
+
+# Ignore VSCode settings and extensions
+.vscode/
+
+# Ignore directory used by VSCode Remote Development extension
+.vscode-server/
+
+# Ignore logs
+logs/
+*.log
+
+.DS_Store
+
