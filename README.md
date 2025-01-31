@@ -1,4 +1,5 @@
-# AI-Powered Document Processing System  
+# AI-Powered Document Processing System 
+### **📄 Project Summary**  
 🚀 **Extract, Standardize, and Store Data from PDFs and Webpages**  
 
 ## **📌 Overview**
@@ -22,9 +23,19 @@ The system provides:
 
 ---
 
-## **✔ Technology Stack **
+## **✔ Technology Stack**
 
-Python, FastAPI, Streamlit, AWS S3
+| **Category**       | **Tools Used** |
+|------------------|--------------|
+| **Programming Language** | Python 3.8+ |
+| **PDF Processing** | PyPDF2, pdfplumber, Microsoft Document Intelligence |
+| **Web Scraping** | BeautifulSoup, requests |
+| **Markdown Standardization** | Docling, MarkItDown |
+| **Backend API** | FastAPI |
+| **Frontend UI** | Streamlit |
+| **Cloud Storage** | AWS S3 |
+| **Deployment** | Render, Streamlit Cloud |
+
 
 ---
 
@@ -117,6 +128,15 @@ App will open at:
 * Upload a PDF file or enter a webpage URL in the Streamlit app.
 * The API processes the document and returns standardized Markdown output.
 * Extracted content is stored in AWS S3 (if enabled).
+
+---
+
+## **📌 Expected Outcomes**
+
+* A functional AI-powered document processing system for extracting and standardizing data.
+* A working API & Streamlit app that allow users to process PDFs & webpages.  
+* A performance comparison between open-source and enterprise extraction tools.  
+* A fully documented project with findings, code, and usage guidelines.  
 
 ---
 
