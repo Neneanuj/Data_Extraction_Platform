@@ -4,15 +4,29 @@ import pandas as pd
 import time
 from io import BytesIO
 
-# Initialize session state
-if 'api_response' not in st.session_state:
-    st.session_state.api_response = None
-
-# FastAPI endpoint URL - update with your actual FastAPI server URL
-API_BASE_URL = "http://localhost:8000"
+import streamlit as st
 
 # Page configuration
 st.set_page_config(layout="wide", page_title="Data Extraction Tool")
+
+
+# Initialize session state
+if "api_response" not in st.session_state:
+    st.session_state["api_response"] = {}
+
+# Safely check for the "status" key
+if "status" in st.session_state["api_response"]:
+    if st.session_state["api_response"]["status"] == "success":
+        st.write("Success!")
+    else:
+        st.write("Failure!")
+else:
+    st.write("Key 'status' not found in api_response.")
+
+
+# FastAPI endpoint URL - update with your actual FastAPI server URL
+API_BASE_URL = "http://127.0.0.1:8000"
+
 
 # Sidebar navigation
 with st.sidebar:
@@ -92,12 +106,14 @@ else:  # Web Scrape Tool
                 response = scrape_webpage(url)
                 st.session_state.api_response = response
                 
-        if st.session_state.api_response:
-            if st.session_state.api_response["status"] == "success":
+        if st.session_state.api_response is not None:
+
+            if st.session_state.api_response.get("status") == "success":
                 st.success("Scraping Complete!")
                 st.markdown(f"Download Link: {st.session_state.api_response['download_url']}")
             else:
-                st.error(f"Error: {st.session_state.api_response['message']}")
+                st.error(f"Error: {st.session_state.api_response.get('message', 'Unknown error')}") 
+
 
 # Footer
 st.markdown("---")
