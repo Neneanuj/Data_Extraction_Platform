@@ -33,34 +33,37 @@ The system provides:
 
 ## **📂 Project Structure**
 ```plaintext
-├── .github/workflows/       # (Optional) CI/CD setup for automation
-├── docs/                    # Documentation, diagrams, and project reports
-├── src/
-│   ├── extraction/          # Extract data from PDFs & webpages
-│   │   ├── pdf_parser.py    # PDF extraction using PyPDF2, pdfplumber
-│   │   ├── web_scraper.py   # Web scraping using BeautifulSoup
-│   │
-│   ├── standardization/     # Standardization using Docling & MarkItDown
-│   │   ├── docling_utils.py
-│   │   ├── markitdown_utils.py
-│   │
-│   ├── api/                 # FastAPI backend
-│   │   ├── main.py          # FastAPI entry point
-│   │   ├── requirements.txt # API dependencies
-│   │
-│   ├── streamlit_app/       # Streamlit frontend for user interaction
-│   │   ├── app.py           # Streamlit entry point
-│   │
-│   ├── pipeline/            # Main pipeline to process documents
-│   │   ├── main_pipeline.py
-│   │
-│   ├── tests/               # Unit tests
-│
-├── .gitignore               # Ignore files (e.g., virtual environment)
-├── README.md                # Project introduction and instructions
-├── AiUseDisclosure.md       # AI usage disclosure
-├── LICENSE                  # (Optional) Open-source license
-└── requirements.txt         # Python dependencies
+├.
+├── .github
+│   └── workflows          # CI/CD automation setup
+├── docs
+│   └── Codelab.md         # Project documentation
+├── webapp
+│   ├── frontend           # Streamlit frontend for user interaction
+│   │   └── src
+│   │       └── main.py    # Frontend entry point
+│   └── backend
+│       └── src
+│           ├── S3
+│           │   ├── __init__.py
+│           │   └── s3_organization.py
+│           ├── api           # FastAPI backend
+│           │   ├── __init__.py
+│           │   └── main.py   # FastAPI entry point
+│           ├── extraction    # Extract data from PDFs & webpages
+│           │   ├── __init__.py
+│           │   ├── pdf_parser_enterprise.py    # PDF extraction using Microsoft Document Intelligence
+│           │   ├── pdf_parser_opensource.py    # PDF extraction using PyPDF2, pdfplumber
+│           │   └── web_scraper.py              # Web scraping using BeautifulSoup
+│           └── standardization                 # Standardization using Docling & MarkItDown
+│               ├── __init__.py
+│               ├── docling_utils.py
+│               └── markitdown_utils.py
+├── .gitignore            # Git ignore file
+├── AiuseDisclosure.md    # AI usage disclosure
+├── README.md             # Project documentation
+└── ToolsComparison.md    # Tools comparison documentation
+
 ```
 
 ---
