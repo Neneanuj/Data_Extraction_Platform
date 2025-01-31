@@ -22,6 +22,12 @@ The system provides:
 
 ---
 
+## **✔ Technology Stack **
+
+Python, FastAPI, Streamlit, AWS S3
+
+---
+
 ## **🛠️ User Guide**
 1. Users can choose different ways to extract data. 
 2. When user inputs a PDF or URL, it will be temporarily stored in S3 first
