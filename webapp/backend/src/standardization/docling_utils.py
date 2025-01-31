@@ -2,10 +2,10 @@ from docling.document_converter import DocumentConverter
 
 def docling_convert(source: str) -> str:
     """
-    使用Docling将PDF(或URL)转换为技术风格的Markdown文本。
+    Convert a PDF (or URL) to a markdown text in a technical style using Docling.
     
-    :param source: PDF文件路径或URL
-    :return: Docling转换后的Markdown文本
+    :param source: Path to a PDF file or a URL
+    :return: Markdown text after conversion by Docling
     """
     converter = DocumentConverter()
     result = converter.convert(source)
