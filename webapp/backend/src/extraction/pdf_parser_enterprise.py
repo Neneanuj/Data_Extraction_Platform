@@ -21,7 +21,8 @@ from adobe.pdfservices.operation.pdfjobs.result.extract_pdf_result import Extrac
 
 from dotenv import load_dotenv
 
-load_dotenv()
+if os.getenv("ENV_MODE") != "production":
+    load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 def generate_s3_base_key(pdf_path: str) -> str:
