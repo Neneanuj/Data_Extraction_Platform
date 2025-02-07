@@ -76,62 +76,73 @@ async def upload_pdf_opensource(
 ) -> Dict[str, Any]:
     """
     Endpoint to process a PDF using an open-source parser.
-    Steps:
-    1. Save the uploaded PDF to a temporary file.
-    2. Process the PDF to extract markdown files, images, and tables.
-    3. Create a ZIP archive in memory with extracted content.
-    4. Upload the ZIP archive to S3.
-    5. Return the download link for the ZIP archive.
     """
-    # Save uploaded PDF to a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
-        content = await file.read()
-        tmp_pdf.write(content)
-        pdf_path = tmp_pdf.name
+    pdf_path = None
+    parsed = None
+    try:
+        # Save uploaded PDF to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            content = await file.read()
+            tmp_pdf.write(content)
+            pdf_path = tmp_pdf.name
 
-    # Process the PDF to extract content
-    parsed = process_pdf_with_open_source(pdf_path)
+        # Process the PDF to extract content
+        parsed = process_pdf_with_open_source(pdf_path)
 
-    # Create an in-memory ZIP archive
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        # Add extracted markdown files
-        zf.writestr("docling.md", parsed["docling_markdown"])
-        zf.writestr("markitdown.md", parsed["markitdown_markdown"])
+        # Create an in-memory ZIP archive
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            # Add extracted markdown files
+            zf.writestr("docling.md", parsed["docling_markdown"])
+            zf.writestr("markitdown.md", parsed["markitdown_markdown"])
 
-        # Add extracted images
-        if os.path.exists(parsed["images_dir"]):
-            for root, _, files in os.walk(parsed["images_dir"]):
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    zip_path = os.path.join("images", file_name)
-                    zf.write(file_path, zip_path)
+            # Add extracted images
+            if os.path.exists(parsed["images_dir"]):
+                for root, _, files in os.walk(parsed["images_dir"]):
+                    for file_name in files:
+                        file_path = os.path.join(root, file_name)
+                        zip_path = os.path.join("images", file_name)
+                        zf.write(file_path, zip_path)
 
-        # Add extracted tables
-        if os.path.exists(parsed["tables_dir"]):
-            for root, _, files in os.walk(parsed["tables_dir"]):
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    zip_path = os.path.join("tables", file_name)
-                    zf.write(file_path, zip_path)
+            # Add extracted tables
+            if os.path.exists(parsed["tables_dir"]):
+                for root, _, files in os.walk(parsed["tables_dir"]):
+                    for file_name in files:
+                        file_path = os.path.join(root, file_name)
+                        zip_path = os.path.join("tables", file_name)
+                        zf.write(file_path, zip_path)
 
-    # Remove temporary files and directories
-    os.remove(pdf_path)
-    shutil.rmtree(parsed["images_dir"], ignore_errors=True)
-    shutil.rmtree(parsed["tables_dir"], ignore_errors=True)
+        # Remove temporary files and directories
+        os.remove(pdf_path)
+        shutil.rmtree(parsed["images_dir"], ignore_errors=True)
+        shutil.rmtree(parsed["tables_dir"], ignore_errors=True)
 
-    # Upload the ZIP archive to S3
-    zip_key = generate_s3_key("pdf/opensource", file.filename) + "_result.zip"
-    zip_buffer.seek(0)
-    upload_to_s3(bucket_name, zip_key, zip_buffer.getvalue())
+        # Upload the ZIP archive to S3
+        zip_key = generate_s3_key("pdf/opensource", file.filename) + "_result.zip"
+        zip_buffer.seek(0)
+        upload_to_s3(bucket_name, zip_key, zip_buffer.getvalue())
 
-    # Generate a presigned URL for downloading the ZIP archive
-    download_url = generate_presigned_url(bucket_name, zip_key)
-    return {
-        "status": "success",
-        "download_url": download_url,
-        "message": "ZIP contains two Markdown files, extracted images, and tables."
-    }
+        # Generate a presigned URL for downloading the ZIP archive
+        download_url = generate_presigned_url(bucket_name, zip_key)
+        return {
+            "status": "success",
+            "download_url": download_url,
+            "message": "ZIP contains two Markdown files, extracted images, and tables."
+        }
+
+    except Exception as e:
+        # Cleanup temporary resources in case of error
+        if pdf_path and os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        if parsed:
+            images_dir = parsed.get("images_dir")
+            if images_dir and os.path.exists(images_dir):
+                shutil.rmtree(images_dir, ignore_errors=True)
+            tables_dir = parsed.get("tables_dir")
+            if tables_dir and os.path.exists(tables_dir):
+                shutil.rmtree(tables_dir, ignore_errors=True)
+        # Return JSON error response
+        return {"status": "error", "message": str(e)}
 
 @app.post("/scrape_webpage")
 async def scrape_webpage(
@@ -287,4 +298,4 @@ async def scrape_diffbot(
 
 # Run FastAPI server when script is executed directly
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

@@ -12,7 +12,7 @@ if "api_response" not in st.session_state:
     st.session_state["api_response"] = {}
 
 # FastAPI endpoint URL - update with your actual FastAPI server URL
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "https://myapp-service-980441147674.us-east1.run.app"
 
 # Sidebar navigation
 with st.sidebar:
