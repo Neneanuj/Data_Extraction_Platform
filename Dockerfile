@@ -2,7 +2,7 @@ FROM --platform=linux/amd64 python:3.12-slim
 
 ENV ENV_MODE=production
 
-# 1. 安装必要的系统依赖 (含 libyaml-dev)
+# 1. Install necessary system dependencies (including libyaml-dev)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libffi-dev \
@@ -24,17 +24,16 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# 2. 降级 setuptools 避免 cython_sources 问题
+# 2. Downgrade setuptools to avoid cython_sources issue
 RUN pip install --no-cache-dir --upgrade pip setuptools==69.5.1 wheel
 
-# 3. 先安装 Cython
+# 3. Install Cython first
 RUN pip install --no-cache-dir Cython
 
-# 4. 先单独安装 PyYAML 某个版本
+# 4. Install a specific version of PyYAML separately
 RUN pip install --no-cache-dir PyYAML==6.0.2
 
-
-# 5. 再安装其他依赖
+# 5. Then install other dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY webapp /app/webapp
