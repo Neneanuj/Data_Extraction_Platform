@@ -1,5 +1,7 @@
 # AI-Powered Document Processing System 
 ### **📄 Project Summary**  
+Demo Link: https://youtu.be/EA8dEzMJPnM
+
 🚀 **Extract, Standardize, and Store Data from PDFs and Webpages**  
 
 ## **📌 Overview**
@@ -35,6 +37,12 @@ The system provides:
 | **Frontend UI** | Streamlit |
 | **Cloud Storage** | AWS S3 |
 | **Deployment** | Render, Streamlit Cloud |
+
+---
+
+## **🛠️ Diagrams**
+
+![image](./docs/data_extraction_architecture.png)
 
 
 ---
