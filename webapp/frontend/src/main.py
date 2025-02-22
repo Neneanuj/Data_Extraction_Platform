@@ -43,33 +43,6 @@ def scrape_webpage(url, bucket_name="bigdata-project1-storage"):
         return response.json()
     except Exception as e:
         return {"status": "error", "message": str(e)}
-if page == "Web Scrape Tool":
-    st.title("Web Scraping")
-
-    with st.form(key='url_form'):
-        url = st.text_input("Enter URL to scrape:")
-        submit_button = st.form_submit_button("Extract URL Data")
-
-        if submit_button and url:
-            with st.spinner("Scraping website..."):
-                response = scrape_webpage(url)
-                st.session_state.api_response = response
-
-    # 🔹 Check if 'status' key exists before accessing it
-    api_response = st.session_state.get("api_response", {})
-    if "status" in api_response:
-        if api_response["status"] == "success":
-            st.success("Scraping Complete!")
-            st.markdown(f"[Download Data]({api_response['download_url']})")
-        else:
-            st.error(f"Error: {api_response.get('message', 'Unknown error')}")
-    else:
-        st.error("Error: Invalid API response format.")
-
-    # Clear results button
-    if st.session_state.get("api_response") and st.button("Clear Results"):
-        st.session_state.api_response = {}
-        st.experimental_rerun()
 
 # Helper function for Diffbot scraping
 def scrape_diffbot(url, bucket_name="bigdata-project1-storage"):
