@@ -23,7 +23,7 @@ status: Published
 - AWS Account (for S3)
 - Adobe PDF Extract API
 
-![Architecture Diagram](docs/data_extraction_architecture.png)
+![Architecture Diagram](pics/data_extraction_architecture.png)
 
 ## Environment Setup
 
