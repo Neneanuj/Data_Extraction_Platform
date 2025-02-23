@@ -18,7 +18,7 @@ The system provides:
 
 ## **🔑 Features**
 ✅ **Extract text, images, charts, and tables** from PDFs & webpages  
-✅ **Use AI-powered document processing** (Microsoft Document Intelligence)  
+✅ **Use AI-powered document processing** (Adobe pdf extract api, Diffbot)  
 ✅ **Compare Open-Source vs. Enterprise tools** for text extraction  
 ✅ **Standardize extracted content** into Markdown using **Docling & MarkItDown**  
 ✅ **Store processed files in AWS S3** for easy retrieval  
