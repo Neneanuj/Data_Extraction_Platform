@@ -1,6 +1,7 @@
 # AI-Powered Document Processing System 
 ### **📄 Project Summary**  
-Demo Link: https://youtu.be/EA8dEzMJPnM
+Demo Link: https://dataextractiontool.streamlit.app
+Youtube: https://youtu.be/EA8dEzMJPnM
 
 🚀 **Extract, Standardize, and Store Data from PDFs and Webpages**  
 
@@ -122,15 +123,14 @@ env\Scripts\activate     # Windows
 uvicorn src.api.main:app --reload
 ```
 API will be available at:
-🔗 http://127.0.0.1:8000/docs
-
+🔗 [https://fastapi-service-980441147674.us-east1.run.app](https://fastapi-service-980441147674.us-east1.run.app)
 2️⃣ Run the Streamlit App
 ```
 streamlit run src/streamlit_app/app.py
 ```
 
 App will open at:
-🔗 http://localhost:8501
+🔗 [https://dataextractiontool.streamlit.app](https://dataextractiontool.streamlit.app)
 
 3️⃣ Upload a File or Webpage
 * Upload a PDF file or enter a webpage URL in the Streamlit app.
