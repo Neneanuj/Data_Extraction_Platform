@@ -1,0 +1,571 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>AI-Powered Document Processing System</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14" ga4id=""></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  codelab-ga4id=""
+                  id="document-processing-codelab"
+                  title="AI-Powered Document Processing System"
+                  environment="web"
+                  feedback-link="">
+    
+      <google-codelab-step label="Overview" duration="0">
+        <h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Extract text from PDFs using both enterprise (Adobe pdf extraction api) and open-source (PyPDF2) methods</li>
+<li>Scrape web content with BeautifulSoup and Diffbot</li>
+<li>Standardize documents using Docling and MarkItDown</li>
+<li>Store processed files in AWS S3</li>
+<li>Build full-stack app with Streamlit + FastAPI</li>
+</ul>
+<h2 is-upgraded>Prerequisites</h2>
+<ul>
+<li>Python 3.12</li>
+<li>AWS Account (for S3)</li>
+<li>Adobe PDF Extract API</li>
+</ul>
+<p class="image-container"><img alt="Architecture Diagram" src="img/ea41487634dc9502.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Environment Setup" duration="0">
+        <h2 is-upgraded>Clone Repository &amp; Install Dependencies</h2>
+<pre><code language="language-bash" class="language-bash">git clone git@github.com:Neneanuj/Data_Extraction_Platform.git
+</code></pre>
+<h2 is-upgraded>Configure Environment Variables</h2>
+<p>Create <code>.env</code> file:</p>
+<pre><code language="language-ini" class="language-ini"># AWS Configuration
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_REGION=your_region
+
+#Diffbot
+DIFFBOT_TOKEN=your_token
+
+#Adobe
+PDF_SERVICES_CLIENT_ID=your_key
+PDF_SERVICES_CLIENT_SECRET=your_secret
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="S3" duration="0">
+        <pre><code language="language-python" class="language-python">def generate_presigned_url(bucket: str, key: str, expiration=3600) -&gt; str:
+    &#34;&#34;&#34;Generate a presigned URL for downloading from S3 with enterprise-level security configuration.&#34;&#34;&#34;
+    s3_client = boto3.client(&#39;s3&#39;, config=boto3.session.Config(signature_version=&#39;s3v4&#39;))
+    try:
+        return s3_client.generate_presigned_url(
+            &#39;get_object&#39;,
+            Params={&#39;Bucket&#39;: bucket, &#39;Key&#39;: key},
+            ExpiresIn=expiration
+        )
+    except ClientError as e:
+        raise RuntimeError(f&#34;Failed to generate presigned URL: {str(e)}&#34;)
+
+def upload_to_s3(bucket_name: str, s3_key: str, data: Union[bytes, str]) -&gt; None:
+    &#34;&#34;&#34;
+    Upload a file or byte data to a specified S3 bucket.
+
+    :param bucket_name: The name of the target S3 bucket
+    :param s3_key: The target key (path) in S3
+    :param data: Can be either a file path (str) or byte data (bytes)
+    &#34;&#34;&#34;
+    try:
+        s3 = boto3.client(&#39;s3&#39;)
+        if isinstance(data, bytes):
+            # Handle byte data
+            s3.put_object(Bucket=bucket_name, Key=s3_key, Body=data)
+        else:
+            # Handle file path
+            s3.upload_file(Filename=data, Bucket=bucket_name, Key=s3_key)
+    except Exception as e:
+        raise Exception(f&#34;Failed to upload to S3: {str(e)}&#34;)
+
+def generate_s3_key(file_type: str, file_name: str) -&gt; str:
+    &#34;&#34;&#34;
+    Generate an S3 key for storing files.
+    &#34;&#34;&#34;
+    timestamp = datetime.now().strftime(&#39;%Y%m%d_%H%M%S&#39;)
+    return f&#34;{file_type}/{timestamp}_{file_name}&#34;
+
+def download_from_s3(bucket_name: str, object_name: str, file_path: str) -&gt; None:
+    &#34;&#34;&#34;
+    Download a file from an S3 bucket.
+    &#34;&#34;&#34;
+    s3_client = boto3.client(&#39;s3&#39;)
+    try:
+        s3_client.download_file(bucket_name, object_name, file_path)
+    except Exception as e:
+        raise Exception(f&#34;Failed to download from S3: {str(e)}&#34;)
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="PDF Processing Module with Enterprise Service" duration="0">
+        <h2 is-upgraded>Enterprise Parser (Adobe pdf extract api)</h2>
+<pre><code language="language-python" class="language-python">def extract_and_store_pdf(pdf_path: str, bucket_name: str):
+    &#34;&#34;&#34;Core processing logic&#34;&#34;&#34;
+    base_key = generate_s3_base_key(pdf_path)
+    s3_client = boto3.client(&#34;s3&#34;)
+
+    try:
+        # Retrieve PDF content from S3
+        response = s3_client.get_object(Bucket=bucket_name, Key=pdf_path)
+        pdf_byte_data = response[&#34;Body&#34;].read()
+
+        # Initialize Adobe services
+        credentials = ServicePrincipalCredentials(
+            client_id=os.getenv(&#39;PDF_SERVICES_CLIENT_ID&#39;),
+            client_secret=os.getenv(&#39;PDF_SERVICES_CLIENT_SECRET&#39;)
+        )
+        pdf_services = PDFServices(credentials=credentials)
+
+        # Upload byte data directly (following the official example)
+        input_asset = pdf_services.upload(input_stream=pdf_byte_data, mime_type=PDFServicesMediaType.PDF)
+
+        # Configure extraction parameters
+        extract_pdf_params = ExtractPDFParams(
+            elements_to_extract=[ExtractElementType.TEXT, ExtractElementType.TABLES],
+            elements_to_extract_renditions=[ExtractRenditionsElementType.TABLES, ExtractRenditionsElementType.FIGURES]
+        )
+
+        # Submit the job
+        extract_pdf_job = ExtractPDFJob(input_asset=input_asset, extract_pdf_params=extract_pdf_params)
+        location = pdf_services.submit(extract_pdf_job)
+        result = pdf_services.get_job_result(location, ExtractPDFResult)
+
+        # Process the result (key fixing point)
+        result_asset: CloudAsset = result.get_result().get_resource()
+        stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+        
+        # Directly get byte data, no need to call read()
+        zip_data = stream_asset.get_input_stream()  # Removed .read()
+
+        # Store the original ZIP
+        raw_zip_key = f&#34;{base_key}extracted_data.zip&#34;
+        upload_to_s3(bucket_name, raw_zip_key, zip_data)
+
+        # Parse and categorize storage
+        with zipfile.ZipFile(BytesIO(zip_data)) as archive:
+            # ... subsequent processing remains unchanged ...
+
+            return {&#34;download_url&#34;: create_presigned_url(bucket_name, raw_zip_key)}
+
+    except (ServiceApiException, ServiceUsageException, SdkException) as e:
+        logging.error(f&#34;Adobe API error: {str(e)}&#34;)
+        raise RuntimeError(f&#34;Document processing failed: {str(e)}&#34;)
+    except Exception as e:
+        logging.error(f&#34;System error: {str(e)}&#34;)
+        raise RuntimeError(f&#34;System processing exception: {str(e)}&#34;)
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="PDF Processing Module with Opensource Tool" duration="0">
+        <h2 is-upgraded>Open-Source Parser (PyPDF2)</h2>
+<pre><code language="language-python" class="language-python">def process_pdf_with_open_source(pdf_source: str) -&gt; Dict[str, Any]:
+    &#34;&#34;&#34;
+    Parse PDF and return:
+      - &#34;docling_markdown&#34;: the string after docling conversion
+      - &#34;markitdown_markdown&#34;: the string after markitdown conversion
+      - &#34;images_dir&#34;: the directory where images are extracted
+      - &#34;tables_dir&#34;: the directory where tables (CSV) are extracted
+    &#34;&#34;&#34;
+    # If the input is a remote URL, download it to a local temporary file
+    if pdf_source.lower().startswith(&#34;http&#34;):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=&#34;.pdf&#34;) as tmp:
+            response = requests.get(pdf_source)
+            tmp.write(response.content)
+            pdf_path = tmp.name
+    else:
+        # If it is a local file, use it directly
+        pdf_path = pdf_source
+
+    # Extract images to a temporary folder
+    images_dir = tempfile.mkdtemp()
+    _extract_images(pdf_path, images_dir)
+
+    # Extract tables to a temporary folder
+    tables_dir = tempfile.mkdtemp()
+    _extract_tables(pdf_path, tables_dir)
+
+    # Extract pure text
+    text_content = _extract_text_only(pdf_path)
+
+    # Optionally, if you want to delete the temporary PDF, you can do it here
+    # However, if the pdf_source was a local file, it may not need to be deleted. This depends on the scenario.
+    if pdf_source.lower().startswith(&#34;http&#34;):
+        os.remove(pdf_path)
+
+    # Write this text to a temporary .md file for docling/markitdown parsing
+    with tempfile.NamedTemporaryFile(delete=False, suffix=&#34;.md&#34;) as tmp_file:
+        tmp_file.write(text_content.encode(&#34;utf-8&#34;))
+        tmp_file_path = tmp_file.name
+
+    docling_md = docling_convert(tmp_file_path)
+    os.remove(tmp_file_path)
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=&#34;.txt&#34;) as tmp_file2:
+        tmp_file2.write(text_content.encode(&#34;utf-8&#34;))
+        tmp_path_txt2 = tmp_file2.name
+
+    markitdown_md = markitdown_convert(tmp_path_txt2)
+    os.remove(tmp_path_txt2)
+
+    # Return relevant information
+    return {
+        &#34;docling_markdown&#34;: docling_md,
+        &#34;markitdown_markdown&#34;: markitdown_md,
+        &#34;images_dir&#34;: images_dir,
+        &#34;tables_dir&#34;: tables_dir
+    }
+
+def _extract_images(pdf_path: str, output_dir: str):
+    &#34;&#34;&#34;Extract all images using PyMuPDF to a specified directory&#34;&#34;&#34;
+    doc = fitz.open(pdf_path)
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        for img_index, img in enumerate(page.get_images(full=True)):
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            image_ext = base_image[&#34;ext&#34;]
+            image_filename = f&#34;page{page_num+1}_img{img_index+1}.{image_ext}&#34;
+            image_path = os.path.join(output_dir, image_filename)
+            with open(image_path, &#34;wb&#34;) as f:
+                f.write(base_image[&#34;image&#34;])
+    doc.close()
+
+def _extract_tables(pdf_path: str, output_dir: str):
+    &#34;&#34;&#34;Extract tables using pdfplumber into CSV files&#34;&#34;&#34;
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_num, page in enumerate(pdf.pages):
+            tables = page.extract_tables()
+            print(f&#34;Page {page_num+1} - tables found: {len(tables)}&#34;)  # Displaying the number of tables found
+            for t_idx, table in enumerate(tables):
+                csv_filename = f&#34;page{page_num+1}_table{t_idx+1}.csv&#34;
+                csv_path = os.path.join(output_dir, csv_filename)
+                with open(csv_path, &#34;w&#34;, newline=&#34;&#34;, encoding=&#34;utf-8&#34;) as csv_file:
+                    writer = csv.writer(csv_file)
+                    writer.writerows(table)
+
+def _extract_text_only(pdf_path: str) -&gt; str:
+    &#34;&#34;&#34;Extract text using pdfplumber and concatenate into a single string&#34;&#34;&#34;
+    lines = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                lines.append(text.strip())
+    return &#34;\n&#34;.join(lines)
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Web Content Extraction with Opensource Tool" duration="0">
+        <h2 is-upgraded>BeautifulSoup Implementation</h2>
+<pre><code language="language-python" class="language-python">def parse_url(url):
+    &#34;&#34;&#34;Fetch and parse HTML content&#34;&#34;&#34;
+    valid, error_message = is_valid_url(url)
+    if not valid:
+        return None, error_message
+    try:
+        headers = {&#34;User-Agent&#34;: &#34;Mozilla/5.0 (Windows NT 10.0; Win64; x64)&#34;}
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.content, &#39;html.parser&#39;)
+        return soup, None
+    except Exception as e:
+        return None, f&#34;Failed to parse URL: {str(e)}&#34;
+
+def extract_clean_text(soup):
+    &#34;&#34;&#34;Extract and clean text&#34;&#34;&#34;
+    try:
+        return re.sub(r&#39;\s+&#39;, &#39; &#39;, soup.get_text()).strip(), None
+    except Exception:
+        return None, &#34;Text extraction failed&#34;
+
+def extract_urls(soup, base_url):
+    &#34;&#34;&#34;Extract URLs with metadata from HTML&#34;&#34;&#34;
+    try:
+        urls = []
+        for i, link in enumerate(soup.find_all(&#39;a&#39;)):
+            href = link.get(&#39;href&#39;)
+            if href:
+                urls.append({
+                    &#39;position&#39;: i + 1,
+                    &#39;url&#39;: urljoin(base_url, href),
+                    &#39;text&#39;: link.text.strip(),
+                    &#39;title&#39;: link.get(&#39;title&#39;, &#39;N/A&#39;)
+                })
+        return urls, None
+    except Exception:
+        return None, &#34;URL extraction failed&#34;
+
+def extract_images(soup, base_url):
+    &#34;&#34;&#34;Extract images with metadata (NOT the actual image files, just info)&#34;&#34;&#34;
+    try:
+        images = []
+        for i, img in enumerate(soup.find_all(&#39;img&#39;)):
+            src = img.get(&#39;src&#39;, &#39;&#39;)
+            if not src:
+                continue
+            abs_src = urljoin(base_url, src)
+            images.append({
+                &#39;position&#39;: i + 1,
+                &#39;alt&#39;: img.get(&#39;alt&#39;, &#39;&#39;).strip(),
+                &#39;src&#39;: abs_src,
+                &#39;width&#39;: img.get(&#39;width&#39;, &#39;N/A&#39;),
+                &#39;height&#39;: img.get(&#39;height&#39;, &#39;N/A&#39;)
+            })
+        return images, None
+    except Exception:
+        return None, &#34;Image extraction failed&#34;
+
+def extract_tables(soup):
+    &#34;&#34;&#34;Extract tables from HTML (as DataFrame list)&#34;&#34;&#34;
+    try:
+        tables = []
+        for table in soup.find_all(&#39;table&#39;):
+            headers = [th.text.strip() for th in table.find_all(&#39;th&#39;)]
+            if not headers and table.find(&#39;tr&#39;):
+                headers = [f&#39;Column_{i}&#39; for i in range(len(table.find(&#39;tr&#39;).find_all(&#39;td&#39;)))]
+            
+            rows = []
+            for tr in table.find_all(&#39;tr&#39;):
+                tds = tr.find_all(&#39;td&#39;)
+                if tds and len(tds) == len(headers):
+                    row_data = [td.text.strip() for td in tds]
+                    rows.append(row_data)
+            
+            if rows:
+                df = pd.DataFrame(rows, columns=headers)
+                tables.append(df)
+        return tables, None
+    except Exception:
+        return None, &#34;Table extraction failed&#34;
+
+def scrape_url_and_convert(url: str):
+    &#34;&#34;&#34;
+    Publicly exposed scraping and conversion function:
+    1) Parse URL -&gt; Extract text, images, tables, and links
+    2) Convert extracted text into docling.md and markitdown.md
+    Returns:
+    {
+      &#34;docling_markdown&#34;: str,
+      &#34;markitdown_markdown&#34;: str,
+      &#34;text_raw&#34;: str,    # Optionally, saves the original extracted text
+      &#34;images&#34;: [...],    # Metadata of images
+      &#34;tables&#34;: [DataFrame1, DataFrame2, ...],
+      &#34;urls&#34;: [...],      # Metadata of links
+      &#34;error&#34;: None or &#34;xxxxx&#34;
+    }
+    &#34;&#34;&#34;
+    soup, error = parse_url(url)
+    if error:
+        return {&#34;error&#34;: error}
+
+    # Extract text
+    text_data, err_text = extract_clean_text(soup)
+    if err_text:
+        return {&#34;error&#34;: err_text}
+
+    # Extract URLs
+    urls_data, err_urls = extract_urls(soup, url)
+    if err_urls:
+        urls_data = []
+
+    # Extract images metadata
+    images_data, err_imgs = extract_images(soup, url)
+    if err_imgs:
+        images_data = []
+
+    # Extract tables
+    tables_data, err_tables = extract_tables(soup)
+    if err_tables:
+        tables_data = []
+
+    # Convert text_data to docling.md and markitdown.md
+    with tempfile.NamedTemporaryFile(delete=False, suffix=&#34;.md&#34;) as tmp_md:
+        tmp_md.write(text_data.encode(&#34;utf-8&#34;))
+        tmp_md_path = tmp_md.name
+
+    docling_md = &#34;&#34;
+    markitdown_md = &#34;&#34;
+    try:
+        docling_md = docling_convert(tmp_md_path)
+    except Exception as e:
+        docling_md = f&#34;Docling conversion failed: {e}&#34;
+
+    try:
+        markitdown_md = markitdown_convert(tmp_md_path)
+    except Exception as e:
+        markitdown_md = f&#34;Markitdown conversion failed: {e}&#34;
+
+    # Delete temporary file after use
+    os.remove(tmp_md_path)
+
+    return {
+        &#34;error&#34;: None,
+        &#34;docling_markdown&#34;: docling_md,
+        &#34;markitdown_markdown&#34;: markitdown_md,
+        &#34;text_raw&#34;: text_data,
+        &#34;images&#34;: images_data,
+        &#34;tables&#34;: tables_data,
+        &#34;urls&#34;: urls_data
+    }
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Web Content Extraction with Service" duration="0">
+        <h2 is-upgraded>Diffbot</h2>
+<pre><code language="language-python" class="language-python">def scrape_url_with_diffbot(url, output_file=&#34;scraped_data.md&#34;):
+    api_url = &#34;https://api.diffbot.com/v3/analyze&#34;
+    token = os.environ.get(&#34;DIFFBOT_TOKEN&#34;)
+    
+    if not token:
+        logger.error(&#34;DIFFBOT_TOKEN environment variable not set.&#34;)
+        return {&#34;error&#34;: &#34;DIFFBOT_TOKEN environment variable not set.&#34;}
+    
+    params = {
+        &#39;token&#39;: token,
+        &#39;url&#39;: url
+    }
+    
+    try:
+        response = requests.get(api_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        
+        markdown_content = f&#34;# Scraped Data Report\n\n&#34;
+        markdown_content += f&#34;## Source URL\n{url}\n\n&#34;
+        markdown_content += f&#34;## Timestamp\n{datetime.now().strftime(&#39;%Y-%m-%d %H:%M:%S&#39;)}\n\n&#34;
+        markdown_content += &#34;## Extracted Content\n&#34;
+        markdown_content += &#34;```\n&#34;  
+        markdown_content += json.dumps(data, indent=2)
+        markdown_content += &#34;\n```\n&#34;
+        
+    
+        with open(output_file, &#39;w&#39;, encoding=&#39;utf-8&#39;) as f:
+            f.write(markdown_content)
+        
+        logger.info(f&#34;Data has been saved to {output_file}&#34;)
+        return data
+        
+    except requests.RequestException as e:
+        logger.error(f&#34;Error during scraping: {e}&#34;)
+        return {&#34;error&#34;: str(e)}
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Standardization Process" duration="0">
+        <h2 is-upgraded>Apply Docling Rules</h2>
+<pre><code language="language-python" class="language-python">def docling_convert(source: str) -&gt; str:
+    &#34;&#34;&#34;
+    Convert a PDF (or URL) to a markdown text in a technical style using Docling.
+    
+    :param source: Path to a PDF file or a URL
+    :return: Markdown text after conversion by Docling
+    &#34;&#34;&#34;
+    converter = DocumentConverter()
+    result = converter.convert(source)
+    return result.document.export_to_markdown()
+</code></pre>
+<h2 is-upgraded>MarkItDown Conversion</h2>
+<pre><code language="language-python" class="language-python">def markitdown_convert(file_path: str) -&gt; str:
+    &#34;&#34;&#34;
+    Convert a file (such as .xlsx or .pdf) into Markdown text using MarkItDown.
+    
+    :param file_path: The path to the file
+    :return: Markdown text after conversion by MarkItDown
+    &#34;&#34;&#34;
+    md = MarkItDown()
+    result = md.convert(file_path)
+    return result.text_content
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="API" duration="0">
+        <h2 is-upgraded>Pdf_Enterprise</h2>
+<pre><code language="language-python" class="language-python">@app.post(&#34;/upload_pdf_enterprise&#34;)
+</code></pre>
+<h2 is-upgraded>Pdf_Opensource</h2>
+<pre><code language="language-python" class="language-python">@app.post(&#34;/upload_pdf_opensource&#34;)
+</code></pre>
+<h2 is-upgraded>Scrape_opensourse</h2>
+<pre><code language="language-python" class="language-python">@app.post(&#34;/scrape_webpage&#34;)
+</code></pre>
+<h2 is-upgraded>Scrape_Enterprise</h2>
+<pre><code language="language-python" class="language-python">@app.post(&#34;/scrape_diffbot&#34;)
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Test locally" duration="0">
+        <h2 is-upgraded>Backend</h2>
+<pre><code language="language-bash" class="language-bash">cd webapp/backend/src/api
+uvicorn main:app
+</code></pre>
+<h2 is-upgraded>Frontend(Replace localhost url)</h2>
+<pre><code language="language-bash" class="language-bash">cd webapp/frontend/src
+streamlit run main.py
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Deployment" duration="0">
+        <h2 is-upgraded>Dockerfile</h2>
+<pre><code language="language-bash" class="language-bash">docker build --platform=linux/amd64 -t gcr.io/YOUR_PROJECT_ID/fastapi-app .
+docker run --rm -it --env-file .env --platform linux/amd64 gcr.io/YOUR_PROJECT_ID/fastapi-app
+docker push gcr.io/YOUR_PROJECT_ID/fastapi-app
+gcloud run deploy fastapi-service \
+  --image gcr.io/YOUR_PROJECT_ID/fastapi-app \
+  --platform managed \
+  --region us-east1 \
+  --allow-unauthenticated
+</code></pre>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>

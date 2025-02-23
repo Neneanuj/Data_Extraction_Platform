@@ -29,7 +29,7 @@ status: Published
 
 ### Clone Repository & Install Dependencies
 ```bash
-git clone https://github.com/yourusername/document-processing.git
+git clone git@github.com:Neneanuj/Data_Extraction_Platform.git
 ```
 
 ### Configure Environment Variables
