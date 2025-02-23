@@ -7,7 +7,7 @@ Youtube: https://youtu.be/8tE-VDrzTqI
 🚀 **Extract, Standardize, and Store Data from PDFs and Webpages**  
 
 ## **📌 Overview**
-This project is an **AI-powered document processing system** that extracts, standardizes, and stores data from **PDFs and webpages**. It uses **open-source tools** (PyPDF2, pdfplumber, BeautifulSoup) and an **enterprise service** (Microsoft Document Intelligence) to process unstructured data. Extracted content is standardized into **Markdown format** using **Docling and MarkItDown** and stored in **AWS S3** for retrieval.  
+This project is an **AI-powered document processing system** that extracts, standardizes, and stores data from **PDFs and webpages**. It uses **open-source tools** (PyPDF2, pdfplumber, BeautifulSoup) and an **enterprise service** (Adobe pdf extract api, Diffbot) to process unstructured data. Extracted content is standardized into **Markdown format** using **Docling and MarkItDown** and stored in **AWS S3** for retrieval.  
 
 The system provides:  
 ✅ **FastAPI backend** for document processing  
