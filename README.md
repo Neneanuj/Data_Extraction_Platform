@@ -60,8 +60,6 @@ The system provides:
 ## **📂 Project Structure**
 ```plaintext
 ├.
-├── .github
-│   └── workflows          # CI/CD automation setup
 ├── docs
 │   └── Codelab.md         # Project documentation
 ├── webapp
@@ -86,6 +84,7 @@ The system provides:
 │               ├── docling_utils.py
 │               └── markitdown_utils.py
 ├── .gitignore            # Git ignore file
+├── Dockerfile    
 ├── AiuseDisclosure.md    # AI usage disclosure
 ├── README.md             # Project documentation
 └── ToolsComparison.md    # Tools comparison documentation
