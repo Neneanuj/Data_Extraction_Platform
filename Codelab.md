@@ -21,9 +21,9 @@ status: Published
 ### Prerequisites
 - Python 3.12
 - AWS Account (for S3)
-- Microsoft Document Intelligence API Key (optional)
+- Adobe PDF Extract API
 
-![Architecture Diagram](data_extraction_architecture.png)
+![Architecture Diagram](docs/data_extraction_architecture.png)
 
 ## Environment Setup
 
