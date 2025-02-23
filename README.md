@@ -31,8 +31,8 @@ The system provides:
 | **Category**       | **Tools Used** |
 |------------------|--------------|
 | **Programming Language** | Python 3.8+ |
-| **PDF Processing** | PyPDF2, pdfplumber, Microsoft Document Intelligence |
-| **Web Scraping** | BeautifulSoup, requests |
+| **PDF Processing** | PyPDF2, pdfplumber, Adobe pdf extract api|
+| **Web Scraping** | BeautifulSoup, Diffbot |
 | **Markdown Standardization** | Docling, MarkItDown |
 | **Backend API** | FastAPI |
 | **Frontend UI** | Streamlit |
@@ -76,9 +76,10 @@ The system provides:
 │           │   └── main.py   # FastAPI entry point
 │           ├── extraction    # Extract data from PDFs & webpages
 │           │   ├── __init__.py
-│           │   ├── pdf_parser_enterprise.py    # PDF extraction using Microsoft Document Intelligence
+│           │   ├── pdf_parser_enterprise.py    # PDF extraction using Adobe pdf extract api
 │           │   ├── pdf_parser_opensource.py    # PDF extraction using PyPDF2, pdfplumber
-│           │   └── web_scraper.py              # Web scraping using BeautifulSoup
+│           │   ├── web_scraper.py              # Web scraping using BeautifulSoup
+│           │   └── web_scraper_enterprise.py   # Web scraping using Diffbot
 │           └── standardization                 # Standardization using Docling & MarkItDown
 │               ├── __init__.py
 │               ├── docling_utils.py
