@@ -4,6 +4,8 @@ Demo Link: https://dataextractiontool.streamlit.app
 
 Youtube: https://youtu.be/8tE-VDrzTqI
 
+Codelab: https://neneanuj.github.io/Data_Extraction_Platform/#0
+
 🚀 **Extract, Standardize, and Store Data from PDFs and Webpages**  
 
 ## **📌 Overview**
